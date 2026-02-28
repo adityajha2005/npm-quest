@@ -76,7 +76,7 @@ function playSound(tier) {
   spawn(cmd, args, { detached: true, stdio: "ignore" }).unref();
 }
 
-function showResult(tier) {
+async function showResult(tier) {
   const clear = "\x1Bc";
   process.stdout.write(clear);
 
@@ -97,7 +97,7 @@ function showResult(tier) {
     console.log(chalk.yellow("\n⚠ Warnings linger in the shadows...\n"));
   }
   if (tier === "COMMON") {
-    console.log(chalk.blue("\n🟡 It worked... eventually.\n"));
+    console.log(chalk.blue("\n🟡 It worked... eventually.\n\n"));
   }
   if (tier === "FAILED") {
     console.log(chalk.red("\n☠ The dragon has defeated you.\n"));
@@ -110,6 +110,61 @@ function showResult(tier) {
       console.log(chalk.cyan(dragon));
     }
   }
+  if (tier === "COMMON") {
+    await animateCommon();
+  }
+}
+
+const COMMON_FRAMES = [
+  `   ♪ ♫ ♪ ♫ ♪ ♫ ♪ ♫
+  (•‿•)  (•‿•)  (•‿•)
+   /|\\    /|\\    /|\\
+   / \\    / \\    / \\
+  loot!  loot!  loot!`,
+  `  ♫ ♪ ♫ ♪ ♫ ♪ ♫ ♪
+  (‿•)  (•‿)  (•‿•)
+  <|>   <|>   <|>
+  / \\   / \\   / \\
+  loot! loot! loot!`,
+  `   ♪ ♫ ♪ ♫ ♪ ♫ ♪ ♫
+  (•‿•)  (•‿•)  (•‿•)
+   \\|/    \\|/    \\|/
+   / \\    / \\    / \\
+  loot!  loot!  loot!`,
+  `  ♫ ♪ ♫ ♪ ♫ ♪ ♫ ♪
+  (‿•)  (•‿)  (•‿•)
+   |     |     |
+  / \\   / \\   / \\
+  loot! loot! loot!`,
+];
+
+async function animateCommon() {
+  const lines = 6;
+  const up = (n) => `\x1b[${n}A`;
+  const clearLine = "\x1b[2K";
+  const down = "\x1b[1B";
+  const clearBlock = up(lines) + Array(lines).fill(clearLine + down).join("") + up(lines);
+  let frameIdx = 0;
+
+  const draw = () => {
+    const frame = COMMON_FRAMES[frameIdx];
+    const colored = chalk.blue(frame);
+    process.stdout.write(colored);
+  };
+
+  process.stdout.write("\n"); // keep animation below COMMON, never override
+  draw();
+  await new Promise((resolve) => {
+    const id = setInterval(() => {
+      process.stdout.write(clearBlock);
+      frameIdx = (frameIdx + 1) % COMMON_FRAMES.length;
+      draw();
+    }, 280);
+    setTimeout(() => {
+      clearInterval(id);
+      resolve();
+    }, 8000);
+  });
 }
 
 async function main() {
@@ -134,7 +189,7 @@ async function main() {
   const tier = classifyResult(result, retryCount);
   playSound(tier);
   await new Promise((r) => setTimeout(r, 800));
-  showResult(tier);
+  await showResult(tier);
   if (tier === "FAILED") process.exit(result.code ?? 1);
 }
 
